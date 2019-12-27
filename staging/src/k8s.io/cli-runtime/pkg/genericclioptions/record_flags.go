@@ -37,12 +37,14 @@ const ChangeCauseAnnotation = "kubernetes.io/change-cause"
 type RecordFlags struct {
 	// Record indicates the state of the recording flag.  It is a pointer so a caller can opt out or rebind
 	Record *bool
+	Update *bool
 
 	changeCause string
 }
 
-// ToRecorder returns a ChangeCause recorder if --record=false was not
-// explicitly given by the user
+// ToRecorder returns a ChangeCauseRecorder if --record[=true] was specified,
+// or a ChangeCauseUpdateRecorder if the flag was omitted,
+// and at last a NoopRecorder if --record=false was explicitly given.
 func (f *RecordFlags) ToRecorder() (Recorder, error) {
 	if f == nil {
 		return NoopRecorder{}, nil
@@ -52,13 +54,21 @@ func (f *RecordFlags) ToRecorder() (Recorder, error) {
 	if f.Record != nil {
 		shouldRecord = *f.Record
 	}
-
-	// if flag was explicitly set to false by the user,
-	// do not record
-	if !shouldRecord {
-		return NoopRecorder{}, nil
+	shouldUpdate := true
+	if f.Update != nil {
+		shouldUpdate = *f.Update
 	}
 
+	if !shouldRecord {
+		// if flag was explicitly set to false by the user,
+		// do not record at all
+		if !shouldUpdate {
+			return NoopRecorder{}, nil
+		}
+		// else if flag was omitted, allow updating an existing change-cause annotation
+		return NewChangeCauseUpdateRecorder(f.changeCause), nil
+	}
+	// in any other case record any change-cause
 	return &ChangeCauseRecorder{
 		changeCause: f.changeCause,
 	}, nil
@@ -71,6 +81,13 @@ func (f *RecordFlags) Complete(cmd *cobra.Command) error {
 	}
 
 	f.changeCause = parseCommandArguments(cmd)
+
+	// if --record was explicitly set to false
+	// do not even update existing change-cause annotation
+	if cmd.Flags().Changed("record") && !*f.Record {
+		*f.Update = false
+	}
+
 	return nil
 }
 
@@ -98,9 +115,11 @@ func (f *RecordFlags) AddFlags(cmd *cobra.Command) {
 // NewRecordFlags provides a RecordFlags with reasonable default values set for use
 func NewRecordFlags() *RecordFlags {
 	record := false
+	update := true
 
 	return &RecordFlags{
 		Record: &record,
+		Update: &update,
 	}
 }
 
@@ -196,4 +215,43 @@ func parseCommandArguments(cmd *cobra.Command) string {
 
 	base := filepath.Base(os.Args[0])
 	return base + args + flags
+}
+
+// ChangeCauseUpdateRecorder updates a "change-cause" annotation if present on an input runtime object
+type ChangeCauseUpdateRecorder struct {
+	ChangeCauseRecorder
+}
+
+func NewChangeCauseUpdateRecorder(changeCause string) *ChangeCauseUpdateRecorder {
+	return &ChangeCauseUpdateRecorder{
+		ChangeCauseRecorder: ChangeCauseRecorder{changeCause: changeCause},
+	}
+}
+
+// Record a change-cause if a change-cause annotation exists on the object
+func (r *ChangeCauseUpdateRecorder) Record(obj runtime.Object) error {
+	if annotationExists(obj) {
+		return r.ChangeCauseRecorder.Record(obj)
+	}
+	return nil
+}
+
+func (r *ChangeCauseUpdateRecorder) MakeRecordMergePatch(obj runtime.Object) ([]byte, error) {
+	if annotationExists(obj) {
+		return r.ChangeCauseRecorder.MakeRecordMergePatch(obj)
+	}
+	return nil, nil
+}
+
+// Check if the annotation exists
+func annotationExists(obj runtime.Object) bool {
+	accessor, err := meta.Accessor(obj)
+	if err != nil {
+		return false
+	}
+	annotations := accessor.GetAnnotations()
+
+	_, found := annotations[ChangeCauseAnnotation]
+
+	return found
 }
