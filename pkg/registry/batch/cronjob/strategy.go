@@ -21,6 +21,7 @@ import (
 
 	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	batchv2alpha1 "k8s.io/api/batch/v2alpha1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
@@ -129,4 +130,34 @@ func (cronJobStatusStrategy) PrepareForUpdate(ctx context.Context, obj, old runt
 
 func (cronJobStatusStrategy) ValidateUpdate(ctx context.Context, obj, old runtime.Object) field.ErrorList {
 	return field.ErrorList{}
+}
+
+// SelectableFields returns a field set that represents the object for matching purposes.
+func ToSelectableFields(cronjob *batch.Cronjob) fields.Set {
+	objectMetaFieldsSet := generic.ObjectMetaFieldsSet(&Cronjob.ObjectMeta, true)
+	specificFieldsSet := fields.Set{
+		"status.successful": strconv.Itoa(int(Cronjob.Status.Succeeded)),
+		"status.active":     strconv.Itoa(int(Cronjob.Status.Active)),
+	}
+	return generic.MergeFieldsSets(objectMetaFieldsSet, specificFieldsSet)
+}
+
+// GetAttrs returns labels and fields of a given object for filtering purposes.
+func GetAttrs(obj runtime.Object) (labels.Set, fields.Set, error) {
+	cronjob, ok := obj.(*batch.Cronjob)
+	if !ok {
+		return nil, nil, fmt.Errorf("given object is not a cronjob.")
+	}
+	return labels.Set(cronjob.ObjectMeta.Labels), ToSelectableFields(cronjob), nil
+}
+
+// Matcher is the filter used by the generic etcd backend to route
+// watch events from etcd to clients of the apiserver only interested in specific
+// labels/fields.
+func Matcher(label labels.Selector, field fields.Selector) storage.SelectionPredicate {
+	return storage.SelectionPredicate{
+		Label:    label,
+		Field:    field,
+		GetAttrs: GetAttrs,
+	}
 }

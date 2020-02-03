@@ -41,6 +41,7 @@ func NewREST(optsGetter generic.RESTOptionsGetter) (*REST, *StatusREST, error) {
 	store := &genericregistry.Store{
 		NewFunc:                  func() runtime.Object { return &batch.CronJob{} },
 		NewListFunc:              func() runtime.Object { return &batch.CronJobList{} },
+		PredicateFunc:            cronjob.Matcher,
 		DefaultQualifiedResource: batch.Resource("cronjobs"),
 
 		CreateStrategy: cronjob.Strategy,
