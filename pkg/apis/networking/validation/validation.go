@@ -118,6 +118,13 @@ func ValidateNetworkPolicyPeer(peer *networking.NetworkPolicyPeer, peerPath *fie
 		numPeers++
 		allErrs = append(allErrs, ValidateIPBlock(peer.IPBlock, peerPath.Child("ipBlock"))...)
 	}
+	if peer.IPBlocks != nil {
+		for i, ipb := range peer.IPBlocks {
+			ipblockPath := peerPath.Child("ipBlocks").Index(i)
+			numPeers++
+			allErrs = append(allErrs, ValidateIPBlock(ipb, ipblockPath)...)
+		}
+	}
 
 	if numPeers == 0 {
 		allErrs = append(allErrs, field.Required(peerPath, "must specify a peer"))

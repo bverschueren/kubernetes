@@ -140,6 +140,20 @@ func TestValidateNetworkPolicy(t *testing.T) {
 		}
 	}
 
+	setIngressFromMultipleIPBlockIPV4 := func(networkPolicy *networking.NetworkPolicy) {
+		setIngressToIfEmpty(networkPolicy)
+		networkPolicy.Spec.Igress[0].From[0].IPBlocks = []*networking.IPBlock{
+			&networking.IPBlock{
+				CIDR:   "192.168.0.0/16",
+				Except: []string{"192.168.3.0/24", "192.168.4.0/24"},
+			},
+			&networking.IPBlock{
+				CIDR:   "172.16.0.0/12",
+				Except: []string{"172.16.3.0/24", "172.16.4.0/24"},
+			},
+		}
+	}
+
 	setIngressFromIPBlockIPV6 := func(networkPolicy *networking.NetworkPolicy) {
 		setIngressFromIfEmpty(networkPolicy)
 		networkPolicy.Spec.Ingress[0].From[0].IPBlock = &networking.IPBlock{
@@ -187,6 +201,20 @@ func TestValidateNetworkPolicy(t *testing.T) {
 		networkPolicy.Spec.Egress[0].To[0].IPBlock = &networking.IPBlock{
 			CIDR:   "192.168.0.0/16",
 			Except: []string{"192.168.3.0/24", "192.168.4.0/24"},
+		}
+	}
+
+	setEgressToMultipleIPBlockIPV4 := func(networkPolicy *networking.NetworkPolicy) {
+		setEgressToIfEmpty(networkPolicy)
+		networkPolicy.Spec.Egress[0].To[0].IPBlocks = []*networking.IPBlock{
+			&networking.IPBlock{
+				CIDR:   "192.168.0.0/16",
+				Except: []string{"192.168.3.0/24", "192.168.4.0/24"},
+			},
+			&networking.IPBlock{
+				CIDR:   "172.16.0.0/12",
+				Except: []string{"172.16.3.0/24", "172.16.4.0/24"},
+			},
 		}
 	}
 

@@ -193,6 +193,11 @@ type NetworkPolicyPeer struct {
 	// neither of the other fields can be.
 	// +optional
 	IPBlock *IPBlock
+
+	// IPBlocks defines policy on a list of IPBlocks. If this field is set then
+	// neither of the other fields can be.
+	// +optional
+	IPBlocks []*IPBlock
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
