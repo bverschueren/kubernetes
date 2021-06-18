@@ -159,6 +159,43 @@ func Convert_networking_IPBlock_To_v1beta1_IPBlock(in *networking.IPBlock, out *
 	return nil
 }
 
+func Convert_v1beta1_NetworkPolicyPeer_To_networking_NetworkPolicyPeer(in *extensionsv1beta1.NetworkPolicyPeer, out *networking.NetworkPolicyPeer, s conversion.Scope) error {
+	if err := autoConvert_v1beta1_NetworkPolicyPeer_To_networking_NetworkPolicyPeer(in, out, s); err != nil {
+		return err
+	}
+
+	if (len(in.IPBlock) > 0 && len(in.IPBlocks) > 0) && (in.IPBlock != in.IPBlocks[0]) {
+		out.IPBlocks = []*networking.IPBlock{
+			{
+				CIDR: in.IPBlock.CIDR,
+			},
+		}
+	}
+	// at the this point, autoConvert copied v1.IPBlocks -> networking.IPBlocks
+	// if v1.IPBlocks was empty but v1.IPBlock is not, then set networking.IPBlocks[0] with v1.IPBlock
+	if len(in.IPBlock) > 0 && len(in.IPBlocks) == 0 {
+		out.IPBlocks = []*networking.IPBlock{
+			{
+				CIDR: in.IPBlock.CIDR,
+			},
+		}
+	}
+	return nil
+}
+
+func Convert_networking_NetworkPolicyPeer_To_v1beta1_NetworkPolicyPeer(in *networking.NetworkPolicyPeer, out *extensionsv1beta1.NetworkPolicyPeer, s conversion.Scope) error {
+	if err := autoConvert_networking_NetworkPolicyPeer_To_v1beta1_NetworkPolicyPeer(in, out, s); err != nil {
+		return err
+	}
+	// at the this point autoConvert copied networking.IPBlocks -> v1.IPBlocks
+	//  v1.IPBlock (singular value field, which does not exist in networking) needs to
+	// be set with networking.IPBlocks[0]
+	if len(in.IPBlocks) > 0 {
+		out.IPBlock = in.IPBlocks[0]
+	}
+	return nil
+}
+
 func Convert_v1beta1_IngressBackend_To_networking_IngressBackend(in *extensionsv1beta1.IngressBackend, out *networking.IngressBackend, s conversion.Scope) error {
 	if err := autoConvert_v1beta1_IngressBackend_To_networking_IngressBackend(in, out, s); err != nil {
 		return err

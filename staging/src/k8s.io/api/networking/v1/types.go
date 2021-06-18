@@ -201,6 +201,7 @@ type NetworkPolicyPeer struct {
 	// IPBlocks defines policy on a list of IPBlocks. If this field is set then
 	// neither of the other fields can be.
 	// +optional
+	// +listType=atomic
 	IPBlocks []*IPBlock `json:"ipBlocks,omitempty" protobuf:"bytes,4,rep,name=ipBlocks"`
 }
 
